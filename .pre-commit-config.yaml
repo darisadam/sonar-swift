@@ -1,0 +1,86 @@
+# Pre-commit hooks for sonar-swift contributors AND for Swift projects that
+# install sonar-swift as a quality gate.
+#
+# Two layers:
+#   1) repo-hygiene — yaml/json/whitespace lint
+#   2) sonar-swift  — lightweight scan on changed Swift / ObjC files
+#                     (full SonarQube scan stays in CI; pre-commit only flags
+#                     blocker issues so the loop is fast)
+#
+# Install once per dev box:
+#     pip install pre-commit
+#     pre-commit install
+#
+# Run on demand:
+#     pre-commit run --all-files
+#
+# See docs/pre-commit.md for the full story.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: detect-private-key
+
+  # ----- Swift formatting & lint (Swift code only) -----
+  - repo: local
+    hooks:
+      - id: swift-format
+        name: swift-format (Apple's tool)
+        description: Apple's swift-format check — runs only on changed .swift files.
+        entry: scripts/hooks/swift-format-check.sh
+        language: script
+        files: \.swift$
+        pass_filenames: true
+
+      - id: swiftlint
+        name: SwiftLint
+        description: Runs SwiftLint on the changed Swift files using the project .swiftlint.yml.
+        entry: scripts/hooks/swiftlint-changed.sh
+        language: script
+        files: \.swift$
+        pass_filenames: true
+
+      - id: sonar-swift-quick
+        name: sonar-swift quick scan
+        description: |
+          Runs the sonar-swift native checks (force-unwrap, force-cast, hardcoded
+          secret, weak crypto, concurrency violations) against the staged files
+          only. No SonarQube round-trip required. Fails the commit on blocker
+          issues; warns on the rest.
+        entry: scripts/hooks/sonar-swift-precommit.sh
+        language: script
+        files: \.(swift|m|mm|h)$
+        pass_filenames: true
+
+      - id: sonar-swift-leak-budget
+        name: sonar-swift memory-leak budget
+        description: |
+          Re-runs the scanner self-diagnostic against the last benchmark. Fails
+          if heap growth exceeds the budget recorded in .sonar/leaks/budget.json.
+          Only runs when the plugin sources themselves change.
+        entry: scripts/hooks/leak-budget-check.sh
+        language: script
+        files: ^(sonar-swift-plugin/|sonar-swift-parser/)
+        pass_filenames: false
+        require_serial: true
+
+  # ----- Java / Maven sources (only matters for plugin contributors) -----
+  - repo: local
+    hooks:
+      - id: maven-validate
+        name: Maven validate
+        description: mvn -q -ntp validate — catches POM mistakes before push.
+        entry: bash -c 'mvn -q -ntp validate'
+        language: system
+        files: pom\.xml$
+        pass_filenames: false
