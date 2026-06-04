@@ -1,0 +1,40 @@
+<h2>Why is this an issue?</h2>
+<p>When a value crosses an actor boundary — passed into <code>Task { … }</code>, sent across an
+<code>async</code> call to a different isolation domain, or returned from an <code>actor</code> method —
+Swift requires it to be <code>Sendable</code>. A reference type (<code>class</code>) is not automatically
+<code>Sendable</code>: two threads holding the same instance can race on its mutable state.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+final class Counter {                              // Noncompliant
+    var value = 0
+}
+
+actor Service {
+    func handoff(counter: Counter) { /* … */ }
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+final class Counter: Sendable {                    // immutable storage
+    let value: Int
+    init(value: Int) { self.value = value }
+}
+
+// or — wrap in an actor for mutable state
+actor Counter {
+    private(set) var value = 0
+    func bump() { value += 1 }
+}
+</pre>
+
+<h2>Exceptions</h2>
+<p>Types you explicitly mark <code>@unchecked Sendable</code> bypass this rule because the developer
+has made a manual safety claim. That claim is independently audited by rule <code>S1901</code>.</p>
+
+<h2>See also</h2>
+<ul>
+    <li><a href="https://github.com/apple/swift-evolution/blob/main/proposals/0302-concurrent-value-and-concurrent-closures.md">SE-0302 — Sendable</a></li>
+    <li><a href="https://developer.apple.com/documentation/swift/sendable">Swift docs — Sendable</a></li>
+</ul>

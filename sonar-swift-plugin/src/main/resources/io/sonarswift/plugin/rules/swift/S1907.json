@@ -1,0 +1,16 @@
+{
+    "title": "`static var` outside an `actor` is unsafe under concurrency",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "10min"
+    },
+    "tags": ["concurrency", "data-race", "shared-state", "swift", "swift6"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1907",
+    "sqKey": "S1907",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way", "Strict"]
+}

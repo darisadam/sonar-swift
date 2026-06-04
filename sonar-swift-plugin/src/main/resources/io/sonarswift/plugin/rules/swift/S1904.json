@@ -1,0 +1,16 @@
+{
+    "title": "`Task { ... }` closures should not capture `self` strongly",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "5min"
+    },
+    "tags": ["concurrency", "memory-leak", "retain-cycle", "swift"],
+    "defaultSeverity": "Major",
+    "ruleSpecification": "RSPEC-S1904",
+    "sqKey": "S1904",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way", "Strict"]
+}

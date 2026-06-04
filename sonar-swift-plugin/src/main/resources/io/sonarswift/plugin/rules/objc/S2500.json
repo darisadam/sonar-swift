@@ -1,0 +1,16 @@
+{
+    "title": "NSNumber instances should not be compared with == or !=",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "10min"
+    },
+    "tags": ["pitfall", "objc"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S2500",
+    "sqKey": "S2500",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

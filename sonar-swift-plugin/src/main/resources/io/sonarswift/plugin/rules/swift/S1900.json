@@ -1,0 +1,16 @@
+{
+    "title": "Reference types crossing concurrency boundaries should conform to `Sendable`",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "15min"
+    },
+    "tags": ["concurrency", "data-race", "swift", "swift6"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1900",
+    "sqKey": "S1900",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way", "Strict"]
+}

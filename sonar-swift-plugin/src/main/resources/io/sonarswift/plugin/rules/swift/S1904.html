@@ -1,0 +1,37 @@
+<h2>Why is this an issue?</h2>
+<p>A <code>Task</code> retains everything its closure captures until the task completes. For a long-running
+or never-finishing task (e.g. <code>AsyncSequence</code> consumption), strongly capturing <code>self</code>
+turns the enclosing view controller or coordinator into something that can't deallocate until the task
+ends — usually after the screen has disappeared, sometimes never.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+class ProfileViewController: UIViewController {
+    func observeUpdates() {
+        Task {                                            // Noncompliant — strong self
+            for await event in self.events {
+                self.label.text = event.title
+            }
+        }
+    }
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+class ProfileViewController: UIViewController {
+    func observeUpdates() {
+        Task { [weak self] in
+            guard let self else { return }
+            for await event in self.events {
+                self.label.text = event.title
+            }
+        }
+    }
+}
+</pre>
+
+<h2>Exceptions</h2>
+<p>If the task is bounded (e.g. a single <code>await</code> call that finishes promptly) and you actively
+want the surrounding object to live until the task finishes, capturing strongly is intentional. Annotate
+the call site with a comment or use <code>[unowned self]</code> if you can guarantee the lifetime.</p>

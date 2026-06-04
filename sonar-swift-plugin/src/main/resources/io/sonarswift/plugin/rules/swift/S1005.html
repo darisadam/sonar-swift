@@ -1,0 +1,24 @@
+<h2>Why is this an issue?</h2>
+<p><code>print()</code>, <code>debugPrint()</code>, and <code>dump()</code> write to stdout — they're useful
+during development but leak diagnostic detail into shipping binaries. They can also surprise
+performance-sensitive code paths by serialising large objects.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+func saveUser(_ user: User) {
+    print("Saving \(user)")        // Noncompliant
+    repository.save(user)
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+import os
+
+private let log = Logger(subsystem: "com.example.app", category: "users")
+
+func saveUser(_ user: User) {
+    log.debug("Saving \(user, privacy: .private)")
+    repository.save(user)
+}
+</pre>

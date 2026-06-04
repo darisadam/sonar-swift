@@ -1,0 +1,37 @@
+<h2>Why is this an issue?</h2>
+<p>Hardcoding a credential (API key, OAuth token, password) in source means it ships with every binary,
+appears in every commit, and is recoverable by anyone with the IPA. Once leaked it requires rotation across
+every dependent system.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+struct API {
+    static let key = "AKIAIOSFODNN7EXAMPLE"        // Noncompliant — AWS access key
+    static let token = "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789"  // Noncompliant — GitHub PAT
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+struct API {
+    static var key: String {
+        ProcessInfo.processInfo.environment["MY_API_KEY"]
+            ?? loadFromKeychain("MY_API_KEY")
+            ?? abort("Missing MY_API_KEY")
+    }
+}
+</pre>
+
+<p>Possible delivery mechanisms for app secrets:</p>
+<ul>
+    <li>Server-issued, short-lived OAuth/JWT after user authentication</li>
+    <li>Configuration provided at build time via Xcode build settings + xcconfig, never committed</li>
+    <li>Remote configuration (Firebase Remote Config, AWS AppConfig) with appropriate access controls</li>
+</ul>
+
+<h2>See also</h2>
+<ul>
+    <li>OWASP Mobile Top 10 — M9: Insecure Data Storage</li>
+    <li>MASVS V8.1 — Sensitive data is not exposed</li>
+    <li>CWE-798: Use of Hard-coded Credentials</li>
+</ul>

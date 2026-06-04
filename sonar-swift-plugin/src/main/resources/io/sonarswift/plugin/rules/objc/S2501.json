@@ -1,0 +1,16 @@
+{
+    "title": "Blocks should not strongly capture self when the block is stored as a property of self",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "15min"
+    },
+    "tags": ["pitfall", "memory-leak", "objc"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S2501",
+    "sqKey": "S2501",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

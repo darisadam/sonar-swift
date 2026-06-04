@@ -1,0 +1,16 @@
+{
+    "title": "Methods should not be too long",
+    "type": "CODE_SMELL",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "30min"
+    },
+    "tags": ["brain-overload", "convention", "objc"],
+    "defaultSeverity": "Major",
+    "ruleSpecification": "RSPEC-S2001",
+    "sqKey": "S2001",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

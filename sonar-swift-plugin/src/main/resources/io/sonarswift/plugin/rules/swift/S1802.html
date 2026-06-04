@@ -1,0 +1,20 @@
+<h2>Why is this an issue?</h2>
+<p>Plain-text HTTP traffic can be intercepted and modified by anyone on the network path.
+For any URL that carries user data or app state, use HTTPS so TLS protects the channel.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+let url = URL(string: "http://api.example.com/users")!  // Noncompliant
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+let url = URL(string: "https://api.example.com/users")!
+</pre>
+
+<h2>Exceptions</h2>
+<ul>
+    <li>Localhost / loopback URLs (development)</li>
+    <li>Private-range IPs (10.x, 192.168.x, 172.16-31.x)</li>
+    <li>W3C XML namespaces and DTD references — these are identifiers, not endpoints</li>
+</ul>

@@ -1,0 +1,17 @@
+<h2>Why is this an issue?</h2>
+<p>A force-cast (<code>as!</code>) traps at runtime if the cast fails. Use conditional cast (<code>as?</code>)
+and handle the <code>nil</code> case explicitly.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+let cell = tableView.dequeueReusableCell(withIdentifier: "X", for: indexPath) as! MyCell  // Noncompliant
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+guard let cell = tableView.dequeueReusableCell(
+        withIdentifier: "X", for: indexPath) as? MyCell else {
+    assertionFailure("Cell registration is broken")
+    return UITableViewCell()
+}
+</pre>

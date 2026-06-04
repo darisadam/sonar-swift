@@ -1,0 +1,19 @@
+<h2>Why is this an issue?</h2>
+<p>An <code>async</code> call without <code>await</code> is a static error in Swift — but only when the
+compiler has full type information. With binary frameworks or generic constraints that obscure
+async-ness, the diagnostic can land at the wrong call site. This rule fires the same finding from a
+static-analysis perspective so editors and CI report it consistently.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+func process(_ pipe: Pipeline) async throws {
+    let result = pipe.run()         // Noncompliant — pipe.run() is async, missing await
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+func process(_ pipe: Pipeline) async throws {
+    let result = await pipe.run()
+}
+</pre>

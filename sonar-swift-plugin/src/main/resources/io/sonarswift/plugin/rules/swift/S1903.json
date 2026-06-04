@@ -1,0 +1,16 @@
+{
+    "title": "UI APIs must be touched from a `@MainActor` context",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "10min"
+    },
+    "tags": ["concurrency", "ui", "main-thread", "swift", "swiftui", "uikit"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1903",
+    "sqKey": "S1903",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way", "Strict"]
+}

@@ -1,0 +1,15 @@
+<h2>Why is this an issue?</h2>
+<p><code>TODO</code> / <code>FIXME</code> / <code>HACK</code> / <code>XXX</code> tags signal known incomplete
+work. They should either be resolved or converted into tracked tickets so they aren't forgotten.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+// TODO: handle the network failure case
+func fetchProfile() async -> Profile { ... }
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+// PROJ-1234: handle the network failure case
+func fetchProfile() async -> Profile { ... }
+</pre>

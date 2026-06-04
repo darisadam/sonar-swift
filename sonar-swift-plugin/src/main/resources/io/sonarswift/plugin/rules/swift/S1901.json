@@ -1,0 +1,16 @@
+{
+    "title": "`@unchecked Sendable` should be reviewed",
+    "type": "SECURITY_HOTSPOT",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "20min"
+    },
+    "tags": ["concurrency", "data-race", "review", "swift"],
+    "defaultSeverity": "Minor",
+    "ruleSpecification": "RSPEC-S1901",
+    "sqKey": "S1901",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way", "Strict"]
+}

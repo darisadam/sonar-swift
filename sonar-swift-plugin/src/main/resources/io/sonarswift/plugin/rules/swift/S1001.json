@@ -1,0 +1,16 @@
+{
+    "title": "Force-unwrap of an optional should be avoided",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "5min"
+    },
+    "tags": ["pitfall", "convention", "swift", "swiftlint:force_unwrapping"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1001",
+    "sqKey": "S1001",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

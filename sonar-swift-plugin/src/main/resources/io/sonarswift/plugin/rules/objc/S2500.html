@@ -1,0 +1,15 @@
+<h2>Why is this an issue?</h2>
+<p>{@code ==} on two {@code NSNumber*} compares pointer identity, not numeric equality. Use {@code isEqualToNumber:}
+or {@code compare:} for value comparison.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+NSNumber *a = @1;
+NSNumber *b = @1;
+if (a == b) { /* may be true OR false depending on tagged-pointer optimization */ }  // Noncompliant
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+if ([a isEqualToNumber:b]) { ... }
+</pre>

@@ -1,0 +1,16 @@
+{
+    "title": "`Task.detached` should be used sparingly",
+    "type": "CODE_SMELL",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "10min"
+    },
+    "tags": ["concurrency", "actor-isolation", "swift"],
+    "defaultSeverity": "Major",
+    "ruleSpecification": "RSPEC-S1905",
+    "sqKey": "S1905",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way", "Strict"]
+}

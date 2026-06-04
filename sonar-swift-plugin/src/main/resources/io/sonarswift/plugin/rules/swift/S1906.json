@@ -1,0 +1,16 @@
+{
+    "title": "Calls to `async` functions inside an `async` body should be `await`ed",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "5min"
+    },
+    "tags": ["concurrency", "async", "swift"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1906",
+    "sqKey": "S1906",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Strict"]
+}

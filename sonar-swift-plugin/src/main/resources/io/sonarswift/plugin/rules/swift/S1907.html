@@ -1,0 +1,30 @@
+<h2>Why is this an issue?</h2>
+<p>A <code>static var</code> declared on a non-actor type is global mutable state — two threads can read
+and write to it simultaneously with no synchronization, which is a data race. Swift 6's strict
+concurrency mode rejects this by default.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+enum FeatureFlags {
+    static var debugMode = false              // Noncompliant
+}
+</pre>
+
+<h2>Compliant solutions</h2>
+<pre>
+// 1. If it's actually immutable, use `let`:
+enum FeatureFlags {
+    static let debugMode = false
+}
+
+// 2. If it must be mutable, move into an actor:
+actor FeatureFlags {
+    static let shared = FeatureFlags()
+    var debugMode = false
+}
+
+// 3. If you've audited the synchronization yourself:
+enum FeatureFlags {
+    nonisolated(unsafe) static var debugMode = false   // see rule S1908
+}
+</pre>

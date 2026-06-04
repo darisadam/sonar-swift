@@ -1,0 +1,18 @@
+{
+    "title": "Cleartext URLs (http://) should not be used for sensitive resources",
+    "type": "VULNERABILITY",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "10min"
+    },
+    "tags": ["cwe", "security", "masvs-network-1", "swift"],
+    "defaultSeverity": "Major",
+    "ruleSpecification": "RSPEC-S1802",
+    "sqKey": "S1802",
+    "scope": "Main",
+    "securityStandards": {
+        "CWE": [319]
+    },
+    "defaultQualityProfiles": ["Sonar way"]
+}

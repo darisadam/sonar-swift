@@ -1,0 +1,16 @@
+{
+    "title": "Track uses of TODO, FIXME, HACK, and XXX tags",
+    "type": "CODE_SMELL",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "0min"
+    },
+    "tags": ["convention", "todo"],
+    "defaultSeverity": "Info",
+    "ruleSpecification": "RSPEC-S1007",
+    "sqKey": "S1007",
+    "scope": "All",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

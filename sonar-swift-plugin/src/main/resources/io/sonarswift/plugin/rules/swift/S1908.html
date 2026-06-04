@@ -1,0 +1,20 @@
+<h2>Ask yourself whether</h2>
+<ul>
+    <li>The declaration is written once at startup and never mutated again.</li>
+    <li>If it is mutated at runtime, every read and write is gated behind a lock / dispatch barrier / atomic.</li>
+    <li>The synchronization scheme is documented next to the declaration so the next reader can verify it.</li>
+</ul>
+
+<h2>Recommended secure coding practices</h2>
+<pre>
+// Acceptable — initialized once, never mutated:
+nonisolated(unsafe) static let startTime = Date()
+
+// Acceptable — synchronized via lock, documented:
+// MARK: - Internal cache. Reads/writes hold `cacheLock`.
+private static let cacheLock = NSLock()
+nonisolated(unsafe) private static var cache: [String: Data] = [:]
+
+// Not OK — no synchronization, drifts into a race in production:
+nonisolated(unsafe) static var sharedCounter = 0
+</pre>

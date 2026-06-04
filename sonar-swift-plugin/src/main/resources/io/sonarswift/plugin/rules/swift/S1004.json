@@ -1,0 +1,16 @@
+{
+    "title": "Force-try should be avoided",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "5min"
+    },
+    "tags": ["pitfall", "error-handling", "swift", "swiftlint:force_try"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1004",
+    "sqKey": "S1004",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

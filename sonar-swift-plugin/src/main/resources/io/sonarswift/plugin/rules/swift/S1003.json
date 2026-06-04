@@ -1,0 +1,16 @@
+{
+    "title": "Force-cast should be avoided",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "5min"
+    },
+    "tags": ["pitfall", "convention", "swift", "swiftlint:force_cast"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1003",
+    "sqKey": "S1003",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

@@ -1,0 +1,32 @@
+<h2>Why is this an issue?</h2>
+<p>An <code>actor</code> guarantees serial access to its mutable state, but only when that access goes through
+its isolation barrier. Reading or writing an actor property from outside without <code>await</code> is a
+compile error under Swift 6 strict concurrency, and a runtime data-race warning before that.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+actor Counter {
+    var value = 0
+}
+
+func bump(_ c: Counter) {
+    c.value += 1     // Noncompliant — racing access
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+actor Counter {
+    var value = 0
+    func bump() { value += 1 }
+}
+
+func bump(_ c: Counter) async {
+    await c.bump()
+}
+</pre>
+
+<h2>See also</h2>
+<ul>
+    <li><a href="https://github.com/apple/swift-evolution/blob/main/proposals/0306-actors.md">SE-0306 — Actors</a></li>
+</ul>

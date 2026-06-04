@@ -1,0 +1,28 @@
+<h2>Why is this an issue?</h2>
+<p>Force-unwrapping an optional (the trailing <code>!</code>) crashes the app at runtime if the value is <code>nil</code>.
+It hides a question every reader has to answer themselves: <em>is this safe?</em> Swift offers safer constructs
+(<code>if let</code>, <code>guard let</code>, <code>??</code>) that prove the answer in code.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+let user = currentUser!                            // Noncompliant
+print(user.displayName!.uppercased())              // Noncompliant
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+guard let user = currentUser else { return }
+let name = (user.displayName ?? "Unknown").uppercased()
+print(name)
+</pre>
+
+<h2>Exceptions</h2>
+<p>Tests sometimes use force-unwrap when a value <em>must</em> exist for the test to be meaningful
+(e.g. <code>XCTUnwrap</code> is preferred but legacy tests may use <code>!</code>). The rule is not active
+on files under <code>**/Tests/**</code> by default.</p>
+
+<h2>See also</h2>
+<ul>
+    <li><a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics/#Optionals">The Swift Programming Language — Optionals</a></li>
+    <li><a href="https://realm.io/news/altconf-david-east-when-to-force-unwrap/">When to force-unwrap (and when not to)</a></li>
+</ul>

@@ -1,0 +1,18 @@
+<h2>Why is this an issue?</h2>
+<p><code>try!</code> traps at runtime if the call throws. Handle errors with <code>do/catch</code> or
+propagate them with <code>try</code>.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+let data = try! Data(contentsOf: url)  // Noncompliant
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+do {
+    let data = try Data(contentsOf: url)
+    process(data)
+} catch {
+    logger.error("Failed to load: \(error)")
+}
+</pre>

@@ -1,0 +1,17 @@
+<h2>Why is this an issue?</h2>
+<p>A magic number — a numeric literal embedded in code with no name — leaves the reader guessing what
+it means. Naming the value documents intent and lets you reuse it.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+if (retries > 3) { ... }       // Noncompliant — what's 3?
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+static const NSInteger MaxRetries = 3;
+if (retries > MaxRetries) { ... }
+</pre>
+
+<h2>Exceptions</h2>
+<p>{@code 0}, {@code 1}, {@code -1}, and numeric literals in unit tests are exempt.</p>

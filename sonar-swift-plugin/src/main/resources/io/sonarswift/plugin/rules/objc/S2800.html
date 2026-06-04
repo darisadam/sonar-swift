@@ -1,0 +1,15 @@
+<h2>Why is this an issue?</h2>
+<p>MD5 is cryptographically broken: collisions can be produced in seconds on commodity hardware.
+Do not use it for digital signatures, password hashing, or message authentication.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+unsigned char digest[CC_MD5_DIGEST_LENGTH];
+CC_MD5(data.bytes, (CC_LONG)data.length, digest);   // Noncompliant
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+CC_SHA256(data.bytes, (CC_LONG)data.length, digest);
+</pre>

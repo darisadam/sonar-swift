@@ -1,0 +1,30 @@
+<h2>Why is this an issue?</h2>
+<p>A detached task inherits no isolation, no priority, and no actor context from its caller. It's
+useful for genuinely fire-and-forget background work, but using it as the default form of <code>Task</code>
+defeats Swift Concurrency's careful isolation propagation.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+func loadAndShow() {
+    Task.detached {                              // Noncompliant — no isolation
+        let data = try await network.fetch()
+        await self.show(data)                     // probably a MainActor hop too
+    }
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+@MainActor
+func loadAndShow() {
+    Task {                                       // inherits MainActor
+        let data = try await network.fetch()
+        show(data)
+    }
+}
+</pre>
+
+<h2>Exceptions</h2>
+<p>Long-running background work that genuinely needs to escape its caller's actor isolation
+(e.g. a daemon-style observer) is a legitimate use of <code>Task.detached</code>. Document the
+reason at the call site.</p>

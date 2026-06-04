@@ -1,0 +1,18 @@
+{
+    "title": "Weak hash algorithm MD5 should not be used",
+    "type": "VULNERABILITY",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "15min"
+    },
+    "tags": ["cwe", "security", "masvs-crypto-4", "swift"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S1804",
+    "sqKey": "S1804",
+    "scope": "Main",
+    "securityStandards": {
+        "CWE": [327, 328]
+    },
+    "defaultQualityProfiles": ["Sonar way"]
+}

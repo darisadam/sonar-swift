@@ -1,0 +1,16 @@
+{
+    "title": "Mutating actor-isolated state must use `await`",
+    "type": "BUG",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "5min"
+    },
+    "tags": ["concurrency", "data-race", "actor", "swift", "swift6"],
+    "defaultSeverity": "Blocker",
+    "ruleSpecification": "RSPEC-S1902",
+    "sqKey": "S1902",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way", "Strict"]
+}

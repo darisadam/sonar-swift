@@ -1,0 +1,16 @@
+{
+    "title": "Magic numbers should be named constants",
+    "type": "CODE_SMELL",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "10min"
+    },
+    "tags": ["convention", "objc"],
+    "defaultSeverity": "Minor",
+    "ruleSpecification": "RSPEC-S2003",
+    "sqKey": "S2003",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

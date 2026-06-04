@@ -1,0 +1,20 @@
+<h2>Why is this an issue?</h2>
+<p>Long methods are hard to read, hard to test, and tend to hide multiple responsibilities. The default
+threshold is 60 lines for Objective-C.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+- (void)processOrder:(Order *)order {
+    // ... 80 lines ...
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+- (void)processOrder:(Order *)order {
+    [self validate:order];
+    [self charge:order];
+    [self fulfill:order];
+    [self notify:order];
+}
+</pre>

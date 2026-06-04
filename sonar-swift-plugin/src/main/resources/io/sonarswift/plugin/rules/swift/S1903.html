@@ -1,0 +1,34 @@
+<h2>Why is this an issue?</h2>
+<p>UIKit, AppKit, and most of SwiftUI's view body work must happen on the main actor. Calling them from a
+non-main <code>async</code> context (a <code>Task { … }</code>, a background actor, a continuation
+callback) produces UI corruption, lost updates, or crashes.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+func loadProfile() async {
+    let data = try await api.fetch()
+    titleLabel.text = data.title       // Noncompliant — likely off main
+}
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+@MainActor
+func loadProfile() async {
+    let data = try await api.fetch()
+    titleLabel.text = data.title       // OK — function is @MainActor
+}
+
+// Or hop explicitly:
+func loadProfile() async {
+    let data = try await api.fetch()
+    await MainActor.run {
+        titleLabel.text = data.title
+    }
+}
+</pre>
+
+<h2>See also</h2>
+<ul>
+    <li><a href="https://developer.apple.com/documentation/swift/mainactor">Swift docs — MainActor</a></li>
+</ul>

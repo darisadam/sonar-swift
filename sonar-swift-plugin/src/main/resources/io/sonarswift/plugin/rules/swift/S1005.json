@@ -1,0 +1,16 @@
+{
+    "title": "print(), debugPrint(), and dump() should not be left in production code",
+    "type": "CODE_SMELL",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "5min"
+    },
+    "tags": ["convention", "logging", "swift"],
+    "defaultSeverity": "Minor",
+    "ruleSpecification": "RSPEC-S1005",
+    "sqKey": "S1005",
+    "scope": "Main",
+    "securityStandards": {},
+    "defaultQualityProfiles": ["Sonar way"]
+}

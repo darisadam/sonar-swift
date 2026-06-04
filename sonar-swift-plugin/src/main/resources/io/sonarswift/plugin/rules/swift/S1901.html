@@ -1,0 +1,33 @@
+<h2>Ask yourself whether</h2>
+<ul>
+    <li>The type's stored state is truly immutable (every property is <code>let</code> and references only <code>Sendable</code> types).</li>
+    <li>If it is mutable, all access is gated behind a lock, serial dispatch queue, or other synchronization primitive that is documented adjacent to the declaration.</li>
+    <li>The class is <code>final</code> (subclasses can break the safety contract).</li>
+</ul>
+<p>If <em>any</em> of these are uncertain, the type is racy and the <code>@unchecked</code> claim is wrong.</p>
+
+<h2>Recommended secure coding practices</h2>
+<pre>
+// Prefer this: the compiler verifies it
+final class IDGenerator: Sendable {
+    let seed: UInt64
+    init(seed: UInt64) { self.seed = seed }
+}
+
+// Only if you really need mutable shared state without an actor:
+final class Cache: @unchecked Sendable {
+    // Synchronized via an internal lock — documented and verified
+    private let lock = NSLock()
+    private var storage: [String: Data] = [:]
+
+    func get(_ key: String) -> Data? {
+        lock.withLock { storage[key] }
+    }
+}
+</pre>
+
+<h2>See also</h2>
+<ul>
+    <li><a href="https://developer.apple.com/documentation/swift/sendable">Swift docs — Sendable</a></li>
+    <li><a href="https://forums.swift.org/t/se-0302-sendable-and-sendable-closures/44179">SE-0302 review</a></li>
+</ul>

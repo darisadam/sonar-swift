@@ -1,0 +1,33 @@
+<h2>Why is this an issue?</h2>
+<p>MD5 is cryptographically broken: collisions can be produced in seconds on commodity hardware.
+It must not be used for any security-sensitive purpose (digital signatures, password hashing,
+message authentication, etc.).</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+import CryptoKit
+
+let digest = Insecure.MD5.hash(data: token)        // Noncompliant
+</pre>
+
+<pre>
+// CommonCrypto direct use
+CC_MD5(bytes, length, buffer)                       // Noncompliant
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+import CryptoKit
+
+let digest = SHA256.hash(data: token)
+</pre>
+
+<h2>Exceptions</h2>
+<p>If used only for non-security checksumming on trusted input (e.g. file fingerprinting in
+build tools), suppress with <code>// sonar-disable-next-line:S1804</code>.</p>
+
+<h2>See also</h2>
+<ul>
+    <li>MASVS V4 — Cryptography Requirements</li>
+    <li>CWE-327: Use of a Broken or Risky Cryptographic Algorithm</li>
+</ul>

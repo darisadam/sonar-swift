@@ -1,0 +1,18 @@
+{
+    "title": "Weak hash algorithm MD5 should not be used (Objective-C)",
+    "type": "VULNERABILITY",
+    "status": "ready",
+    "remediation": {
+        "func": "Constant\/Issue",
+        "constantCost": "15min"
+    },
+    "tags": ["cwe", "security", "masvs-crypto-4", "objc"],
+    "defaultSeverity": "Critical",
+    "ruleSpecification": "RSPEC-S2800",
+    "sqKey": "S2800",
+    "scope": "Main",
+    "securityStandards": {
+        "CWE": [327, 328]
+    },
+    "defaultQualityProfiles": ["Sonar way"]
+}

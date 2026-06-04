@@ -1,0 +1,20 @@
+<h2>Why is this an issue?</h2>
+<p>If a block captures {@code self} strongly and is also stored as a property of {@code self} (or owned
+indirectly), it creates a retain cycle that leaks the object.</p>
+
+<h2>Noncompliant code example</h2>
+<pre>
+self.handler = ^{
+    [self doSomething];      // Noncompliant — block retains self, self retains block
+};
+</pre>
+
+<h2>Compliant solution</h2>
+<pre>
+__weak typeof(self) weakSelf = self;
+self.handler = ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf) return;
+    [strongSelf doSomething];
+};
+</pre>
