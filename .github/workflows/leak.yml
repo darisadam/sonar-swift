@@ -1,0 +1,65 @@
+name: Leak budget
+
+# Runs the scanner against the sample project under tight heap limits and
+# verifies that memory stays within the recorded budget. Catches accidental
+# retentions (static caches, growing buffers, parser sidecar leaks) before
+# they get merged.
+
+on:
+  pull_request:
+    paths:
+      - 'sonar-swift-plugin/**'
+      - 'sonar-swift-parser/**'
+      - 'pom.xml'
+      - 'scripts/leak/**'
+      - '.github/workflows/leak.yml'
+  workflow_dispatch:
+
+jobs:
+  leak:
+    name: Leak budget (macos-15)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-mvn-${{ hashFiles('**/pom.xml') }}
+
+      - name: Build plugin
+        run: mvn -B -ntp -DskipTests package
+
+      - name: Build Swift parser
+        working-directory: sonar-swift-parser
+        run: swift build -c release
+
+      - name: Install sonar-scanner
+        run: brew install sonar-scanner
+
+      - name: Start SonarQube (compose)
+        run: docker compose -f docker/docker-compose.yml up -d sonarqube
+
+      - name: Wait for SonarQube
+        run: |
+          timeout 240 bash -c 'until curl -sf http://localhost:9000/api/system/status | grep -q "\"UP\""; do sleep 5; done'
+
+      - name: Run leak compare
+        env:
+          SONAR_HOST_URL: http://localhost:9000
+          SONAR_TOKEN: admin
+        run: ./scripts/leak/leak-check.sh --mode=compare --slack=0.05
+
+      - name: Upload leak reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leak-reports
+          path: |
+            .sonar/leaks/latest.json
+            .sonar/leaks/leak-*.json
+            .sonar/leaks/oom.hprof

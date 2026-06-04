@@ -1,0 +1,125 @@
+name: Build & test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  MAVEN_OPTS: "-Xmx2g"
+
+jobs:
+  plugin:
+    name: Java plugin (${{ matrix.os }} · JDK ${{ matrix.jdk }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+        jdk: ['17', '21']
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.jdk }}
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-mvn-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-mvn-
+
+      - name: Build & test
+        run: mvn -B -ntp -DskipTests=false package
+
+      - name: Upload plugin JAR
+        if: matrix.os == 'ubuntu-24.04' && matrix.jdk == '17'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonar-swift-plugin
+          path: sonar-swift-plugin/target/*.jar
+
+  swift-parser:
+    name: Swift parser (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Swift (Linux)
+        if: matrix.os == 'ubuntu-24.04'
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+
+      - name: Build (release)
+        working-directory: sonar-swift-parser
+        run: swift build -c release
+
+      - name: Test
+        working-directory: sonar-swift-parser
+        run: swift test
+
+      - name: Upload parser binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: SwiftSonarParser-${{ matrix.os }}
+          path: sonar-swift-parser/.build/release/SwiftSonarParser
+
+  integration:
+    name: Integration test (sample iOS project)
+    runs-on: macos-15
+    needs: [plugin, swift-parser]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+
+      - name: Download plugin JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: sonar-swift-plugin
+          path: artifacts/plugin
+
+      - name: Download parser
+        uses: actions/download-artifact@v4
+        with:
+          name: SwiftSonarParser-macos-15
+          path: artifacts/parser
+
+      - name: Start local SonarQube
+        run: docker compose -f docker/docker-compose.yml up -d --wait
+
+      - name: Install plugin
+        run: |
+          docker cp artifacts/plugin/*.jar sonar-swift-sq:/opt/sonarqube/extensions/plugins/
+          docker restart sonar-swift-sq
+          # wait for SQ to be back
+          timeout 180 bash -c 'until curl -sf http://localhost:9000/api/system/status | grep -q "\"UP\""; do sleep 5; done'
+
+      - name: Test build + coverage on example
+        working-directory: examples/ios-sample-app
+        run: |
+          xcodebuild test \
+              -scheme SampleApp \
+              -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+              -enableCodeCoverage YES \
+              -resultBundlePath build/SampleApp.xcresult
+
+      - name: Run scanner
+        working-directory: examples/ios-sample-app
+        run: |
+          chmod +x ../../artifacts/parser/SwiftSonarParser
+          sonar-scanner \
+              -Dsonar.host.url=http://localhost:9000 \
+              -Dsonar.token=admin \
+              -Dsonar.swift.parser.path=$PWD/../../artifacts/parser/SwiftSonarParser \
+              -Dsonar.swift.coverage.xcresultPaths=build/SampleApp.xcresult
