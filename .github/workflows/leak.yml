@@ -71,7 +71,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/docker-cache/sonarqube.tar
-          key: docker-image-sonarqube-25.1-community
+          key: docker-image-sonarqube-25.1.0.102122-community
 
       - name: Restore SonarQube image (cache hit)
         if: steps.sq-image-cache.outputs.cache-hit == 'true'
@@ -80,9 +80,9 @@ jobs:
       - name: Pull SonarQube image (cache miss)
         if: steps.sq-image-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull sonarqube:25.1-community
+          docker pull sonarqube:25.1.0.102122-community
           mkdir -p /tmp/docker-cache
-          docker save sonarqube:25.1-community -o /tmp/docker-cache/sonarqube.tar
+          docker save sonarqube:25.1.0.102122-community -o /tmp/docker-cache/sonarqube.tar
 
       - name: Start SonarQube
         run: |

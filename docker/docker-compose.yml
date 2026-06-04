@@ -16,7 +16,11 @@ name: sonar-swift-dev
 
 services:
   sonarqube:
-    image: sonarqube:25.1-community
+    # Pin to a fully-qualified community tag; the short `25.1-community`
+    # shorthand is never published to Docker Hub (only full
+    # MAJOR.MINOR.PATCH.BUILDNUMBER-community tags exist), and using it
+    # makes `docker pull` fail with "manifest unknown".
+    image: sonarqube:25.1.0.102122-community
     container_name: sonar-swift-sq
     ports:
       - "9000:9000"

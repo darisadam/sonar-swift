@@ -160,12 +160,14 @@ jobs:
           path: artifacts/parser
 
       # ── SonarQube docker image: cache the saved tar to skip a 1 GB pull ──
+      # NB: cache key includes the full tag — Docker Hub does NOT publish a
+      # shorthand `25.1-community` tag; only full BUILD.NUMBER tags exist.
       - name: Cache SonarQube docker image
         id: sq-image-cache
         uses: actions/cache@v4
         with:
           path: /tmp/docker-cache/sonarqube.tar
-          key: docker-image-sonarqube-25.1-community
+          key: docker-image-sonarqube-25.1.0.102122-community
 
       - name: Restore SonarQube image (cache hit)
         if: steps.sq-image-cache.outputs.cache-hit == 'true'
@@ -174,9 +176,9 @@ jobs:
       - name: Pull SonarQube image (cache miss)
         if: steps.sq-image-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull sonarqube:25.1-community
+          docker pull sonarqube:25.1.0.102122-community
           mkdir -p /tmp/docker-cache
-          docker save sonarqube:25.1-community -o /tmp/docker-cache/sonarqube.tar
+          docker save sonarqube:25.1.0.102122-community -o /tmp/docker-cache/sonarqube.tar
 
       - name: Start local SonarQube
         run: |
