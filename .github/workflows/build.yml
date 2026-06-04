@@ -53,8 +53,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sonar-swift-plugin
-          path: sonar-swift-plugin/target/*.jar
+          # ONLY the shaded jar — maven-shade-plugin also produces
+          # `original-sonar-swift-plugin-*.jar` (pre-shade backup), which
+          # has no Jackson and crashes SonarQube on load.
+          path: sonar-swift-plugin/target/sonar-swift-plugin-[0-9]*.jar
           retention-days: 14
+          if-no-files-found: error
 
       - name: Upload CLI JAR
         if: matrix.os == 'ubuntu-24.04' && matrix.jdk == '17'
@@ -187,9 +191,42 @@ jobs:
 
       - name: Install plugin into SonarQube container
         run: |
-          docker cp artifacts/plugin/*.jar sonar-swift-sq:/opt/sonarqube/extensions/plugins/
+          set -e
+          # Defensive: pick exactly the shaded jar in case the upload glob
+          # ever drifts again.
+          PLUGIN_JAR=$(ls artifacts/plugin/sonar-swift-plugin-*.jar \
+                          | grep -v original | head -1)
+          test -n "$PLUGIN_JAR" || { echo "No plugin jar found"; ls artifacts/plugin/; exit 1; }
+          echo "Installing plugin: $PLUGIN_JAR ($(stat -c%s "$PLUGIN_JAR") bytes)"
+          docker cp "$PLUGIN_JAR" sonar-swift-sq:/opt/sonarqube/extensions/plugins/
+          docker exec sonar-swift-sq ls -lh /opt/sonarqube/extensions/plugins/
           docker restart sonar-swift-sq
-          timeout 240 bash -c 'until curl -sf http://localhost:9000/api/system/status | grep -q "\"UP\""; do sleep 5; done'
+          # Wait for SonarQube to come back UP. If the new plugin failed to
+          # load, /api/system/status will keep returning STARTING and we'll
+          # exhaust the timeout — that's the signal to dump SQ logs below.
+          timeout 240 bash -c '
+            while true; do
+              STATUS=$(curl -sf http://localhost:9000/api/system/status 2>/dev/null || true)
+              echo "  sq status: $STATUS"
+              echo "$STATUS" | grep -q "\"UP\"" && exit 0
+              sleep 5
+            done
+          '
+
+      - name: Dump SonarQube logs on plugin-load failure
+        if: failure()
+        run: |
+          echo '────── docker ps ──────'
+          docker ps -a
+          echo '────── plugins on container ──────'
+          docker exec sonar-swift-sq ls -lh /opt/sonarqube/extensions/plugins/ || true
+          echo '────── /opt/sonarqube/logs/sonar.log (last 200 lines) ──────'
+          docker exec sonar-swift-sq tail -n 200 /opt/sonarqube/logs/sonar.log 2>/dev/null || true
+          echo '────── /opt/sonarqube/logs/web.log ──────'
+          docker exec sonar-swift-sq tail -n 200 /opt/sonarqube/logs/web.log 2>/dev/null || true
+          echo '────── /opt/sonarqube/logs/ce.log ──────'
+          docker exec sonar-swift-sq tail -n 200 /opt/sonarqube/logs/ce.log 2>/dev/null || true
+        continue-on-error: true
 
       # ── sonar-scanner CLI (zip download, cached) ────────────────────
       - name: Cache sonar-scanner CLI
