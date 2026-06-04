@@ -168,13 +168,33 @@ jobs:
           mkdir -p ~/.docker/cli-plugins
           ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" \
                   ~/.docker/cli-plugins/docker-compose
+          colima version
+          docker --version
 
       - name: Start Colima
+        # No --vz-rosetta: Rosetta 2 isn't installed on macos-15 GHA runners
+        # by default; we don't need it because sonarqube:25.1-community is a
+        # multi-arch image with native arm64 support.
+        # No --network-address: not needed; docker-compose maps published
+        # ports through Colima automatically.
+        # CPU/memory stay below the GHA macos-15 ceiling (3 vCPU / 7 GB).
         run: |
-          colima start --cpu 3 --memory 6 --disk 14 \
-                       --vm-type=vz --vz-rosetta \
-                       --network-address
-          docker info >/dev/null
+          set -x
+          colima start \
+            --cpu 2 \
+            --memory 4 \
+            --disk 14 \
+            --vm-type=vz
+          docker info
+          docker ps
+
+      - name: Collect Colima diagnostics on failure
+        if: failure()
+        run: |
+          colima status || true
+          tail -n 100 ~/.colima/_lima/colima/ha.stderr.log 2>/dev/null || true
+          tail -n 100 ~/.colima/_lima/colima/serial*.log 2>/dev/null || true
+        continue-on-error: true
 
       # ── Cache the SonarQube image so we don't re-pull 1 GB per run ──
       - name: Cache SonarQube docker image

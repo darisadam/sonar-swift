@@ -70,13 +70,28 @@ jobs:
           mkdir -p ~/.docker/cli-plugins
           ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" \
                   ~/.docker/cli-plugins/docker-compose
+          colima version
+          docker --version
 
       - name: Start Colima
+        # See build.yml — no --vz-rosetta / --network-address.
         run: |
-          colima start --cpu 2 --memory 4 --disk 14 \
-                       --vm-type=vz --vz-rosetta \
-                       --network-address
-          docker info >/dev/null
+          set -x
+          colima start \
+            --cpu 2 \
+            --memory 4 \
+            --disk 14 \
+            --vm-type=vz
+          docker info
+          docker ps
+
+      - name: Collect Colima diagnostics on failure
+        if: failure()
+        run: |
+          colima status || true
+          tail -n 100 ~/.colima/_lima/colima/ha.stderr.log 2>/dev/null || true
+          tail -n 100 ~/.colima/_lima/colima/serial*.log 2>/dev/null || true
+        continue-on-error: true
 
       - name: Cache SonarQube docker image
         id: sq-image-cache
