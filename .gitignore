@@ -1,0 +1,38 @@
+# Maven
+target/
+*.jar
+.mvn/wrapper/maven-wrapper.jar
+
+# Swift Package Manager
+.build/
+Package.resolved
+.swiftpm/
+
+# Xcode
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcresult/
+build/
+xcuserdata/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# SonarQube local state
+.scannerwork/
+.sonar/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# secrets — should never be committed
+*.token
+.env
+.env.local

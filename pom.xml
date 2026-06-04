@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.sonarswift</groupId>
+    <artifactId>sonar-swift-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>sonar-swift (parent)</name>
+    <description>SonarQube plugin for Swift and Objective-C — parent POM</description>
+    <url>https://github.com/sonar-swift/sonar-swift</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <modules>
+        <module>sonar-swift-plugin</module>
+        <module>sonar-swift-cli</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- SonarQube plugin API (compatible with SonarQube 10.x LTS and 25.x).
+             We pin a Maven Central-resolvable version so the public build doesn't
+             require sonarsource's repox credentials. Plugin API 10.0+ is binary-
+             compatible with SonarQube 10.x runtime; newer .x.y releases only add
+             methods we don't depend on.
+
+             `sonar-plugin-api-impl` carries the test fixtures `SensorContextTester`
+             + `TestInputFileBuilder` we use in unit tests. It is a runtime artifact
+             from SonarQube core; we pull it as `test`-scope only. -->
+        <sonar.plugin.api.version>10.0.0.695</sonar.plugin.api.version>
+        <sonar.api.impl.version>10.0.0.68432</sonar.api.impl.version>
+        <sonar.packaging.maven.plugin.version>1.23.0.740</sonar.packaging.maven.plugin.version>
+        <sonar.analyzer.commons.version>2.16.0.3141</sonar.analyzer.commons.version>
+
+        <!-- libraries -->
+        <jackson.version>2.18.2</jackson.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <commons.io.version>2.18.0</commons.io.version>
+        <commons.lang3.version>3.17.0</commons.lang3.version>
+
+        <!-- test -->
+        <junit.version>5.11.4</junit.version>
+        <assertj.version>3.26.3</assertj.version>
+        <mockito.version>5.14.2</mockito.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- SonarQube plugin API -->
+            <dependency>
+                <groupId>org.sonarsource.api.plugin</groupId>
+                <artifactId>sonar-plugin-api</artifactId>
+                <version>${sonar.plugin.api.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.sonarsource.api.plugin</groupId>
+                <artifactId>sonar-plugin-api-test-fixtures</artifactId>
+                <version>${sonar.plugin.api.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <!-- SensorContextTester + TestInputFileBuilder live here, not in test-fixtures. -->
+            <dependency>
+                <groupId>org.sonarsource.sonarqube</groupId>
+                <artifactId>sonar-plugin-api-impl</artifactId>
+                <version>${sonar.api.impl.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.sonarsource.analyzer-commons</groupId>
+                <artifactId>sonar-analyzer-commons</artifactId>
+                <version>${sonar.analyzer.commons.version}</version>
+            </dependency>
+
+            <!-- Jackson -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-xml</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jsr310</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <!-- utilities -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons.io.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons.lang3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+
+            <!-- test -->
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.5.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.4.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.6.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonarsource.sonar-packaging-maven-plugin</groupId>
+                    <artifactId>sonar-packaging-maven-plugin</artifactId>
+                    <version>${sonar.packaging.maven.plugin.version}</version>
+                    <extensions>true</extensions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <!-- All artifacts we depend on (sonar-plugin-api 10.0.0.695, sonar-analyzer-
+         commons 2.16.0.3141, sonar-packaging-maven-plugin 1.23.0.740) are on
+         Maven Central — no extra repository declaration needed. -->
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/sonar-swift/sonar-swift</url>
+        </repository>
+    </distributionManagement>
+</project>
