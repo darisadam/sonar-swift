@@ -4,31 +4,42 @@ on:
   push:
     tags: ['v*']
 
+permissions:
+  contents: write   # required to publish the GitHub Release
+
+env:
+  MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
+
 jobs:
   release:
+    name: Build + publish release
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0   # needed by the release notes step (`git log` since previous tag)
 
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '17' }
+      - name: Set up JDK + Maven cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
 
-      - name: Build plugin
+      - name: Build plugin and CLI
         run: mvn -B -ntp -DskipTests package
 
-      - name: Build Swift parser (macOS arm64)
-        uses: actions/checkout@v5     # nop placeholder
-      # Real release builds the parser on macOS + Linux in separate jobs and downloads here.
-
-      - name: Generate release notes
+      - name: Generate release notes from git log
         id: notes
         run: |
           PREV=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
           {
-            echo "## Changes since ${PREV:-the beginning}"
+            if [[ -n "$PREV" ]]; then
+              echo "## Changes since $PREV"
+            else
+              echo "## Initial release"
+            fi
             echo
             git log --no-merges --pretty="- %s (%an)" "${PREV:+$PREV..}HEAD"
           } > NOTES.md
@@ -40,3 +51,7 @@ jobs:
           body_path: ${{ steps.notes.outputs.path }}
           files: |
             sonar-swift-plugin/target/sonar-swift-plugin-*.jar
+            sonar-swift-cli/target/sonar-swift-cli.jar
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false

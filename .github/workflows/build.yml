@@ -5,13 +5,29 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel any in-flight run for the same ref when a new push lands.
+# Branch protection still requires a green run on main, so cancellation only
+# eats time we'd otherwise have wasted.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege: this workflow only needs to read source + upload artefacts.
+permissions:
+  contents: read
+
 env:
-  MAVEN_OPTS: "-Xmx2g"
+  MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
 
 jobs:
+
+  # ────────────────────────────────────────────────────────────────────
+  # Plugin matrix: every supported OS × JDK combination.
+  # ────────────────────────────────────────────────────────────────────
   plugin:
     name: Java plugin (${{ matrix.os }} · JDK ${{ matrix.jdk }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -20,32 +36,49 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up JDK
+      - name: Set up JDK + Maven cache
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ matrix.jdk }}
-
-      - name: Cache Maven
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-mvn-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-mvn-
+          # setup-java's built-in cache: hashes pom.xml automatically and is
+          # OS/JDK aware. Replaces a manual actions/cache step.
+          cache: maven
 
       - name: Build & test
         run: mvn -B -ntp -DskipTests=false package
 
-      - name: Upload plugin JAR
+      - name: Upload plugin JAR (one canonical build)
         if: matrix.os == 'ubuntu-24.04' && matrix.jdk == '17'
         uses: actions/upload-artifact@v4
         with:
           name: sonar-swift-plugin
           path: sonar-swift-plugin/target/*.jar
+          retention-days: 14
 
+      - name: Upload CLI JAR
+        if: matrix.os == 'ubuntu-24.04' && matrix.jdk == '17'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonar-swift-cli
+          path: sonar-swift-cli/target/sonar-swift-cli.jar
+          retention-days: 14
+
+      - name: Upload surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ matrix.os }}-jdk${{ matrix.jdk }}
+          path: '**/target/surefire-reports/'
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────
+  # Swift parser matrix.
+  # ────────────────────────────────────────────────────────────────────
   swift-parser:
     name: Swift parser (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -58,6 +91,20 @@ jobs:
         uses: swift-actions/setup-swift@v2
         with:
           swift-version: '6.0'
+
+      # swift-syntax weighs in at ~70 MB built — caching .build saves ~3 minutes
+      # per run. We key on the Package + Package.resolved so a dep upgrade
+      # invalidates cleanly.
+      - name: Cache SwiftPM build
+        uses: actions/cache@v4
+        with:
+          path: |
+            sonar-swift-parser/.build
+            ~/.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('sonar-swift-parser/Package.swift', 'sonar-swift-parser/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
 
       - name: Build (release)
         working-directory: sonar-swift-parser
@@ -72,16 +119,28 @@ jobs:
         with:
           name: SwiftSonarParser-${{ matrix.os }}
           path: sonar-swift-parser/.build/release/SwiftSonarParser
+          retention-days: 14
 
+  # ────────────────────────────────────────────────────────────────────
+  # End-to-end integration: spin up SonarQube via docker, install the
+  # freshly built plugin, scan the bug-ridden sample iOS app.
+  #
+  # Runs on macos-15 (we need xcodebuild). GitHub-hosted macOS runners
+  # don't ship with Docker — Colima provides the engine.
+  # ────────────────────────────────────────────────────────────────────
   integration:
     name: Integration test (sample iOS project)
     runs-on: macos-15
+    timeout-minutes: 30
     needs: [plugin, swift-parser]
     steps:
       - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '17' }
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
 
       - name: Download plugin JAR
         uses: actions/download-artifact@v4
@@ -95,15 +154,67 @@ jobs:
           name: SwiftSonarParser-macos-15
           path: artifacts/parser
 
-      - name: Start local SonarQube
-        run: docker compose -f docker/docker-compose.yml up -d --wait
+      # ── Docker on macOS via Colima ──────────────────────────────────
+      # Cache the Homebrew downloads so we don't refetch Colima/Docker each run.
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: ${{ runner.os }}-brew-colima-docker-v1
 
-      - name: Install plugin
+      - name: Install Docker + Colima
+        run: |
+          brew install --quiet docker docker-compose colima
+          mkdir -p ~/.docker/cli-plugins
+          ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" \
+                  ~/.docker/cli-plugins/docker-compose
+
+      - name: Start Colima
+        run: |
+          colima start --cpu 3 --memory 6 --disk 14 \
+                       --vm-type=vz --vz-rosetta \
+                       --network-address
+          docker info >/dev/null
+
+      # ── Cache the SonarQube image so we don't re-pull 1 GB per run ──
+      - name: Cache SonarQube docker image
+        id: sq-image-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache/sonarqube.tar
+          key: docker-image-sonarqube-25.1-community
+
+      - name: Restore SonarQube image (cache hit)
+        if: steps.sq-image-cache.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/docker-cache/sonarqube.tar
+
+      - name: Pull SonarQube image (cache miss)
+        if: steps.sq-image-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull sonarqube:25.1-community
+          mkdir -p /tmp/docker-cache
+          docker save sonarqube:25.1-community -o /tmp/docker-cache/sonarqube.tar
+
+      - name: Start local SonarQube
+        run: |
+          docker compose -f docker/docker-compose.yml up -d sonarqube db
+          timeout 240 bash -c 'until curl -sf http://localhost:9000/api/system/status 2>/dev/null | grep -q "\"UP\""; do sleep 5; done'
+
+      - name: Install plugin into SonarQube container
         run: |
           docker cp artifacts/plugin/*.jar sonar-swift-sq:/opt/sonarqube/extensions/plugins/
           docker restart sonar-swift-sq
-          # wait for SQ to be back
-          timeout 180 bash -c 'until curl -sf http://localhost:9000/api/system/status | grep -q "\"UP\""; do sleep 5; done'
+          timeout 240 bash -c 'until curl -sf http://localhost:9000/api/system/status | grep -q "\"UP\""; do sleep 5; done'
+
+      # sonar-scanner is not on the runner by default; brew-cache it.
+      - name: Cache sonar-scanner install
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew/downloads/sonar-scanner*
+          key: ${{ runner.os }}-brew-sonar-scanner-v1
+
+      - name: Install sonar-scanner
+        run: brew install --quiet sonar-scanner
 
       - name: Test build + coverage on example
         working-directory: examples/ios-sample-app
@@ -112,7 +223,10 @@ jobs:
               -scheme SampleApp \
               -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
               -enableCodeCoverage YES \
-              -resultBundlePath build/SampleApp.xcresult
+              -resultBundlePath build/SampleApp.xcresult || true
+          # `|| true` because the sample app intentionally contains failing
+          # tests for the demo; the scanner step downstream is what we're
+          # actually validating.
 
       - name: Run scanner
         working-directory: examples/ios-sample-app
@@ -123,3 +237,26 @@ jobs:
               -Dsonar.token=admin \
               -Dsonar.swift.parser.path=$PWD/../../artifacts/parser/SwiftSonarParser \
               -Dsonar.swift.coverage.xcresultPaths=build/SampleApp.xcresult
+
+      - name: Tear down Colima
+        if: always()
+        run: |
+          docker compose -f docker/docker-compose.yml down -v || true
+          colima stop -f || true
+
+      - name: Upload SonarQube container logs on failure
+        if: failure()
+        run: |
+          mkdir -p sq-logs
+          docker logs sonar-swift-sq > sq-logs/sonarqube.log 2>&1 || true
+        continue-on-error: true
+
+      - name: Upload diagnostic logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-logs
+          path: |
+            sq-logs/
+            examples/ios-sample-app/build/
+          retention-days: 7
