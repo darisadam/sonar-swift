@@ -1,0 +1,9 @@
+{
+    "name": "SwiftLint-compat",
+    "ruleKeys": [
+        "S1001",
+        "S1003",
+        "S1004",
+        "S1005"
+    ]
+}
