@@ -123,15 +123,20 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────────
   # End-to-end integration: spin up SonarQube via docker, install the
-  # freshly built plugin, scan the bug-ridden sample iOS app.
+  # freshly built plugin, scan the bug-ridden sample iOS sources.
   #
-  # Runs on macos-15 (we need xcodebuild). GitHub-hosted macOS runners
-  # don't ship with Docker — Colima provides the engine.
+  # Runs on ubuntu-24.04 — Docker is native on Linux GHA runners. macOS
+  # runners need Colima/Lima which has been unreliable; the integration
+  # test doesn't actually need macOS (the sample app is loose Swift
+  # source files, not an Xcode project — there's nothing to `xcodebuild`).
+  # We trade real xcodebuild coverage for a reliable smoke test of the
+  # plugin's analysis pipeline end-to-end. macOS-specific behaviour is
+  # already exercised by the matrix builds above.
   # ────────────────────────────────────────────────────────────────────
   integration:
-    name: Integration test (sample iOS project)
-    runs-on: macos-15
-    timeout-minutes: 30
+    name: Integration scan (sample sources)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     needs: [plugin, swift-parser]
     steps:
       - uses: actions/checkout@v5
@@ -148,55 +153,13 @@ jobs:
           name: sonar-swift-plugin
           path: artifacts/plugin
 
-      - name: Download parser
+      - name: Download Linux parser binary
         uses: actions/download-artifact@v4
         with:
-          name: SwiftSonarParser-macos-15
+          name: SwiftSonarParser-ubuntu-24.04
           path: artifacts/parser
 
-      # ── Docker on macOS via Colima ──────────────────────────────────
-      # Cache the Homebrew downloads so we don't refetch Colima/Docker each run.
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Caches/Homebrew/downloads
-          key: ${{ runner.os }}-brew-colima-docker-v1
-
-      - name: Install Docker + Colima
-        run: |
-          brew install --quiet docker docker-compose colima
-          mkdir -p ~/.docker/cli-plugins
-          ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" \
-                  ~/.docker/cli-plugins/docker-compose
-          colima version
-          docker --version
-
-      - name: Start Colima
-        # No --vz-rosetta: Rosetta 2 isn't installed on macos-15 GHA runners
-        # by default; we don't need it because sonarqube:25.1-community is a
-        # multi-arch image with native arm64 support.
-        # No --network-address: not needed; docker-compose maps published
-        # ports through Colima automatically.
-        # CPU/memory stay below the GHA macos-15 ceiling (3 vCPU / 7 GB).
-        run: |
-          set -x
-          colima start \
-            --cpu 2 \
-            --memory 4 \
-            --disk 14 \
-            --vm-type=vz
-          docker info
-          docker ps
-
-      - name: Collect Colima diagnostics on failure
-        if: failure()
-        run: |
-          colima status || true
-          tail -n 100 ~/.colima/_lima/colima/ha.stderr.log 2>/dev/null || true
-          tail -n 100 ~/.colima/_lima/colima/serial*.log 2>/dev/null || true
-        continue-on-error: true
-
-      # ── Cache the SonarQube image so we don't re-pull 1 GB per run ──
+      # ── SonarQube docker image: cache the saved tar to skip a 1 GB pull ──
       - name: Cache SonarQube docker image
         id: sq-image-cache
         uses: actions/cache@v4
@@ -226,49 +189,59 @@ jobs:
           docker restart sonar-swift-sq
           timeout 240 bash -c 'until curl -sf http://localhost:9000/api/system/status | grep -q "\"UP\""; do sleep 5; done'
 
-      # sonar-scanner is not on the runner by default; brew-cache it.
-      - name: Cache sonar-scanner install
+      # ── sonar-scanner CLI (zip download, cached) ────────────────────
+      - name: Cache sonar-scanner CLI
+        id: scanner-cache
         uses: actions/cache@v4
         with:
-          path: ~/Library/Caches/Homebrew/downloads/sonar-scanner*
-          key: ${{ runner.os }}-brew-sonar-scanner-v1
+          path: ~/sonar-scanner
+          key: sonar-scanner-cli-6.2.1.4610-linux-x64
 
-      - name: Install sonar-scanner
-        run: brew install --quiet sonar-scanner
-
-      - name: Test build + coverage on example
-        working-directory: examples/ios-sample-app
+      - name: Install sonar-scanner CLI
+        if: steps.scanner-cache.outputs.cache-hit != 'true'
         run: |
-          xcodebuild test \
-              -scheme SampleApp \
-              -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-              -enableCodeCoverage YES \
-              -resultBundlePath build/SampleApp.xcresult || true
-          # `|| true` because the sample app intentionally contains failing
-          # tests for the demo; the scanner step downstream is what we're
-          # actually validating.
+          curl -fsSL -o /tmp/scanner.zip \
+            https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip
+          unzip -q /tmp/scanner.zip -d ~/
+          mv ~/sonar-scanner-6.2.1.4610-linux-x64 ~/sonar-scanner
+          rm /tmp/scanner.zip
 
-      - name: Run scanner
+      - name: Add sonar-scanner to PATH
+        run: echo "$HOME/sonar-scanner/bin" >> "$GITHUB_PATH"
+
+      - name: Run scanner against sample sources
         working-directory: examples/ios-sample-app
         run: |
           chmod +x ../../artifacts/parser/SwiftSonarParser
           sonar-scanner \
               -Dsonar.host.url=http://localhost:9000 \
               -Dsonar.token=admin \
-              -Dsonar.swift.parser.path=$PWD/../../artifacts/parser/SwiftSonarParser \
-              -Dsonar.swift.coverage.xcresultPaths=build/SampleApp.xcresult
+              -Dsonar.projectKey=sonar-swift-sample \
+              -Dsonar.projectName='sonar-swift sample app' \
+              -Dsonar.sources=Sources \
+              -Dsonar.tests=Tests \
+              -Dsonar.swift.parser.path=$PWD/../../artifacts/parser/SwiftSonarParser
 
-      - name: Tear down Colima
-        if: always()
+      - name: Verify findings landed in SonarQube
         run: |
-          docker compose -f docker/docker-compose.yml down -v || true
-          colima stop -f || true
+          # Wait for analysis to settle, then check that issues were imported.
+          sleep 5
+          ISSUES=$(curl -fsS -u admin:admin \
+            "http://localhost:9000/api/issues/search?componentKeys=sonar-swift-sample&ps=1" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("total", 0))')
+          echo "Issues recorded: $ISSUES"
+          test "$ISSUES" -gt 0
 
-      - name: Upload SonarQube container logs on failure
+      - name: Tear down SonarQube
+        if: always()
+        run: docker compose -f docker/docker-compose.yml down -v || true
+
+      - name: Capture SonarQube logs on failure
         if: failure()
         run: |
           mkdir -p sq-logs
           docker logs sonar-swift-sq > sq-logs/sonarqube.log 2>&1 || true
+          docker logs sonar-swift-db > sq-logs/db.log 2>&1 || true
         continue-on-error: true
 
       - name: Upload diagnostic logs
@@ -278,5 +251,5 @@ jobs:
           name: integration-logs
           path: |
             sq-logs/
-            examples/ios-sample-app/build/
+            examples/ios-sample-app/.scannerwork/
           retention-days: 7

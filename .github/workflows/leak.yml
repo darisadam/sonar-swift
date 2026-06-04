@@ -27,9 +27,12 @@ env:
 
 jobs:
   leak:
-    name: Leak budget (macos-15)
-    runs-on: macos-15
-    timeout-minutes: 30
+    # Native Docker on Linux runners — no Colima/VM overhead, faster + reliable.
+    # The leak budget compares JVM heap of the scanner process, which is OS-
+    # independent (the budget JSON is keyed by `heap.used` bytes). Linux is fine.
+    name: Leak budget (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -40,12 +43,17 @@ jobs:
           java-version: '17'
           cache: maven
 
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+
       - name: Cache SwiftPM build
         uses: actions/cache@v4
         with:
           path: |
             sonar-swift-parser/.build
-            ~/Library/Caches/org.swift.swiftpm
+            ~/.swiftpm
           key: ${{ runner.os }}-spm-${{ hashFiles('sonar-swift-parser/Package.swift', 'sonar-swift-parser/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
@@ -57,42 +65,7 @@ jobs:
         working-directory: sonar-swift-parser
         run: swift build -c release
 
-      # ── Docker on macOS via Colima ──────────────────────────────────
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Caches/Homebrew/downloads
-          key: ${{ runner.os }}-brew-colima-scanner-v1
-
-      - name: Install Docker + Colima + sonar-scanner
-        run: |
-          brew install --quiet docker docker-compose colima sonar-scanner
-          mkdir -p ~/.docker/cli-plugins
-          ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" \
-                  ~/.docker/cli-plugins/docker-compose
-          colima version
-          docker --version
-
-      - name: Start Colima
-        # See build.yml — no --vz-rosetta / --network-address.
-        run: |
-          set -x
-          colima start \
-            --cpu 2 \
-            --memory 4 \
-            --disk 14 \
-            --vm-type=vz
-          docker info
-          docker ps
-
-      - name: Collect Colima diagnostics on failure
-        if: failure()
-        run: |
-          colima status || true
-          tail -n 100 ~/.colima/_lima/colima/ha.stderr.log 2>/dev/null || true
-          tail -n 100 ~/.colima/_lima/colima/serial*.log 2>/dev/null || true
-        continue-on-error: true
-
+      # ── SonarQube docker image cache ───────────────────────────────
       - name: Cache SonarQube docker image
         id: sq-image-cache
         uses: actions/cache@v4
@@ -112,11 +85,29 @@ jobs:
           docker save sonarqube:25.1-community -o /tmp/docker-cache/sonarqube.tar
 
       - name: Start SonarQube
-        run: docker compose -f docker/docker-compose.yml up -d sonarqube db
-
-      - name: Wait for SonarQube
         run: |
+          docker compose -f docker/docker-compose.yml up -d sonarqube db
           timeout 240 bash -c 'until curl -sf http://localhost:9000/api/system/status 2>/dev/null | grep -q "\"UP\""; do sleep 5; done'
+
+      # ── sonar-scanner CLI ──────────────────────────────────────────
+      - name: Cache sonar-scanner CLI
+        id: scanner-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/sonar-scanner
+          key: sonar-scanner-cli-6.2.1.4610-linux-x64
+
+      - name: Install sonar-scanner CLI
+        if: steps.scanner-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o /tmp/scanner.zip \
+            https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip
+          unzip -q /tmp/scanner.zip -d ~/
+          mv ~/sonar-scanner-6.2.1.4610-linux-x64 ~/sonar-scanner
+          rm /tmp/scanner.zip
+
+      - name: Add sonar-scanner to PATH
+        run: echo "$HOME/sonar-scanner/bin" >> "$GITHUB_PATH"
 
       - name: Run leak compare
         env:
@@ -124,11 +115,9 @@ jobs:
           SONAR_TOKEN: admin
         run: ./scripts/leak/leak-check.sh --mode=compare --slack=0.05
 
-      - name: Tear down Colima
+      - name: Tear down SonarQube
         if: always()
-        run: |
-          docker compose -f docker/docker-compose.yml down -v || true
-          colima stop -f || true
+        run: docker compose -f docker/docker-compose.yml down -v || true
 
       - name: Upload leak reports
         if: always()
