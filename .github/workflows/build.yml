@@ -184,27 +184,29 @@ jobs:
           mkdir -p /tmp/docker-cache
           docker save sonarqube:25.1.0.102122-community -o /tmp/docker-cache/sonarqube.tar
 
-      - name: Start local SonarQube
-        run: |
-          docker compose -f docker/docker-compose.yml up -d sonarqube db
-          timeout 240 bash -c 'until curl -sf http://localhost:9000/api/system/status 2>/dev/null | grep -q "\"UP\""; do sleep 5; done'
-
-      - name: Install plugin into SonarQube container
+      # The docker-compose mounts ../sonar-swift-plugin/target/ into the
+      # SonarQube container at /opt/sonarqube/extensions/plugins (read-only).
+      # So instead of `docker cp` after startup (which can't write to a :ro
+      # mount), we drop the jar into target/ BEFORE compose up. SonarQube
+      # loads it during its normal boot — same path the local `make up` flow
+      # uses for plugin developers.
+      - name: Stage plugin jar for compose bind-mount
         run: |
           set -e
-          # Defensive: pick exactly the shaded jar in case the upload glob
-          # ever drifts again.
           PLUGIN_JAR=$(ls artifacts/plugin/sonar-swift-plugin-*.jar \
                           | grep -v original | head -1)
           test -n "$PLUGIN_JAR" || { echo "No plugin jar found"; ls artifacts/plugin/; exit 1; }
-          echo "Installing plugin: $PLUGIN_JAR ($(stat -c%s "$PLUGIN_JAR") bytes)"
-          docker cp "$PLUGIN_JAR" sonar-swift-sq:/opt/sonarqube/extensions/plugins/
-          docker exec sonar-swift-sq ls -lh /opt/sonarqube/extensions/plugins/
-          docker restart sonar-swift-sq
-          # Wait for SonarQube to come back UP. If the new plugin failed to
-          # load, /api/system/status will keep returning STARTING and we'll
-          # exhaust the timeout — that's the signal to dump SQ logs below.
-          timeout 240 bash -c '
+          mkdir -p sonar-swift-plugin/target
+          cp "$PLUGIN_JAR" sonar-swift-plugin/target/
+          echo "Staged plugin:"
+          ls -lh sonar-swift-plugin/target/sonar-swift-plugin-*.jar
+
+      - name: Start SonarQube with plugin pre-loaded
+        run: |
+          docker compose -f docker/docker-compose.yml up -d sonarqube db
+          # 300s timeout — initial SQ boot + index build + plugin scan can
+          # take 2-3 min on a fresh container.
+          timeout 300 bash -c '
             while true; do
               STATUS=$(curl -sf http://localhost:9000/api/system/status 2>/dev/null || true)
               echo "  sq status: $STATUS"
@@ -213,12 +215,26 @@ jobs:
             done
           '
 
+      - name: Verify plugin loaded
+        run: |
+          # Hit the /api/plugins/installed endpoint and confirm sonar-swift is there.
+          curl -fsS -u admin:admin http://localhost:9000/api/plugins/installed \
+              | python3 -c '
+          import json, sys
+          plugins = json.load(sys.stdin).get("plugins", [])
+          for p in plugins:
+              print(f"  - {p.get(\"key\")} {p.get(\"version\")} ({p.get(\"name\")})")
+          assert any(p.get("key") == "swift" for p in plugins), \
+              "sonar-swift plugin not loaded by SonarQube"
+          print("✓ sonar-swift plugin loaded")
+          '
+
       - name: Dump SonarQube logs on plugin-load failure
         if: failure()
         run: |
           echo '────── docker ps ──────'
           docker ps -a
-          echo '────── plugins on container ──────'
+          echo '────── /opt/sonarqube/extensions/plugins/ ──────'
           docker exec sonar-swift-sq ls -lh /opt/sonarqube/extensions/plugins/ || true
           echo '────── /opt/sonarqube/logs/sonar.log (last 200 lines) ──────'
           docker exec sonar-swift-sq tail -n 200 /opt/sonarqube/logs/sonar.log 2>/dev/null || true
