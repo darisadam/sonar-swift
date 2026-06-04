@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sonar-swift · scans</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<nav class="topbar">
+    <div class="brand">sonar-swift <span class="muted">/ scans</span></div>
+    <div class="links">
+        <a href="/">Overview</a>
+        <a href="/scans" class="active">Scans</a>
+        <a href="/leaks">Leak reports</a>
+        <a href="/precommit">Pre-commit</a>
+        <a href="/pipeline">Pipeline</a>
+        <a href="/settings">Settings</a>
+        <a href="{{sonarUrl}}" target="_blank" rel="noopener">SonarQube ↗</a>
+    </div>
+</nav>
+
+<main>
+    <section class="hero">
+        <h1>Scans</h1>
+        <p>Local CI runs recorded by <code>scripts/ci/ci-local.sh</code>.</p>
+    </section>
+
+    <section>
+        <table id="ci-table">
+            <thead>
+                <tr><th>Stage</th><th>Result</th><th>Duration</th></tr>
+            </thead>
+            <tbody><tr><td colspan="3" class="muted">loading…</td></tr></tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>SonarQube projects</h2>
+        <ul id="projects-list" class="kv"><li class="muted">loading…</li></ul>
+    </section>
+</main>
+
+<script src="/assets/app.js"></script>
+<script>SonarSwift.refreshScans();</script>
+</body>
+</html>

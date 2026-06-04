@@ -1,0 +1,30 @@
+# sonar-swift pipeline — minimal
+#
+# The three stages every project needs: lint, test, scan. Use as a starting
+# point and grow from here.
+
+name: minimal
+description: Minimal pipeline (lint → test → sonar)
+
+env:
+  SONAR_HOST_URL: http://localhost:9000
+
+stages:
+  - id: lint
+    steps:
+      - uses: swiftlint
+        with: { strict: true }
+
+  - id: test
+    needs: [lint]
+    steps:
+      - uses: command
+        with: { run: swift test }
+
+  - id: sonar
+    needs: [test]
+    steps:
+      - uses: sonar-scanner
+        with:
+          hostUrl: ${{ env.SONAR_HOST_URL }}
+          token: ${{ env.SONAR_TOKEN }}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sonar-swift · pipeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/pipeline.css">
+</head>
+<body>
+<nav class="topbar">
+    <div class="brand">sonar-swift <span class="muted">/ pipeline</span></div>
+    <div class="links">
+        <a href="/">Overview</a>
+        <a href="/scans">Scans</a>
+        <a href="/leaks">Leak reports</a>
+        <a href="/precommit">Pre-commit</a>
+        <a href="/pipeline" class="active">Pipeline</a>
+        <a href="/settings">Settings</a>
+        <a href="{{sonarUrl}}" target="_blank" rel="noopener">SonarQube ↗</a>
+    </div>
+</nav>
+
+<main>
+    <section class="hero">
+        <h1>Pipeline canvas</h1>
+        <p>The local CI/CD pipeline defined in <code>.sonar-swift/pipeline.yml</code>. Each
+           stage is a node; arrows are <code>needs:</code> dependencies. Click a step to see
+           its log.</p>
+        <div class="hero-actions">
+            <button class="primary" id="trigger-btn">▶ Run pipeline</button>
+            <select id="stage-select" class="stage-select"><option value="">All stages</option></select>
+            <button id="refresh-btn">⟳ Refresh</button>
+            <span class="muted" id="run-meta"></span>
+        </div>
+    </section>
+
+    <section class="canvas" id="canvas">
+        <div class="muted">Loading…</div>
+    </section>
+
+    <section>
+        <h2>Run history</h2>
+        <table id="runs-table">
+            <thead><tr><th>Run</th><th>Pipeline</th><th>Status</th><th>Duration</th><th>When</th></tr></thead>
+            <tbody><tr><td colspan="5" class="muted">No runs yet — trigger one above or run <code>make ci</code>.</td></tr></tbody>
+        </table>
+    </section>
+
+    <div id="step-modal" class="modal hidden">
+        <div class="modal-card">
+            <header>
+                <h3 id="modal-title">Step log</h3>
+                <button id="modal-close">×</button>
+            </header>
+            <pre id="modal-body">loading…</pre>
+        </div>
+    </div>
+</main>
+
+<script src="/assets/app.js"></script>
+<script src="/assets/pipeline.js"></script>
+</body>
+</html>

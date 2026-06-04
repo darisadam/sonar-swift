@@ -1,0 +1,179 @@
+# sonar-swift pipeline — iOS app
+#
+# A full local CI/CD pipeline for an iOS application. Adjust `env:` at the top
+# to point at your scheme / workspace, then `sonar-swift pipeline run`.
+#
+# Stages are ordered by `needs:` — independent stages run alongside each other
+# when this file is invoked with --parallel (see `make ci`). Each stage's
+# `steps:` run sequentially by default; set `parallel: true` to fan them out.
+
+name: ios-app
+description: Full iOS CI/CD pipeline (lint → build → tests → security → sonar)
+
+env:
+  XCODE_WORKSPACE: MyApp.xcworkspace
+  XCODE_SCHEME: MyApp
+  XCODE_SIMULATOR: "platform=iOS Simulator,name=iPhone 16,OS=latest"
+  BUILD_DIR: build
+  SONAR_HOST_URL: http://localhost:9000
+
+stages:
+
+  # ----- pre-flight -----
+  - id: validate
+    name: Validate config
+    steps:
+      - uses: command
+        name: Maven validate (plugin author check)
+        with:
+          run: mvn -q -ntp validate
+        continueOnError: true
+
+  # ----- secrets -----
+  - id: secret-scan
+    name: Secret scan
+    parallel: true
+    needs: [validate]
+    steps:
+      - uses: gitleaks
+        name: gitleaks
+        with:
+          redact: true
+          reportPath: ${{ env.BUILD_DIR }}/gitleaks.json
+      - uses: trufflehog
+        name: trufflehog (filesystem)
+        with:
+          mode: filesystem
+          path: .
+          onlyVerified: true
+        continueOnError: true
+
+  # ----- code style -----
+  - id: lint
+    name: Lint
+    parallel: true
+    needs: [validate]
+    steps:
+      - uses: swiftlint
+        with: { strict: true }
+      - uses: swift-format
+        with: { mode: lint, strict: true, paths: [Sources] }
+      - uses: sonar-swift-quick
+        name: native quick scan
+        with:
+          paths: [Sources]
+          format: compiler
+
+  # ----- vulnerability scans -----
+  - id: vulnerability-scan
+    name: Vulnerability scan
+    parallel: true
+    needs: [validate]
+    steps:
+      - uses: trivy-fs
+        with:
+          severity: HIGH,CRITICAL
+          ignoreUnfixed: true
+      - uses: dependency-check
+        name: OWASP dependency-check
+        with:
+          project: ${{ env.XCODE_SCHEME }}
+          scan: .
+          failOnCVSS: 7
+        continueOnError: true
+
+  # ----- static security -----
+  - id: security-static
+    name: Static security (Semgrep)
+    needs: [validate]
+    steps:
+      - uses: semgrep
+        with:
+          config: auto
+          severity: WARNING
+          errorOnFindings: true
+        continueOnError: true
+
+  # ----- build -----
+  - id: build
+    name: Build
+    needs: [lint]
+    steps:
+      - uses: xcode-build
+        with:
+          workspace: ${{ env.XCODE_WORKSPACE }}
+          scheme: ${{ env.XCODE_SCHEME }}
+          destination: ${{ env.XCODE_SIMULATOR }}
+          configuration: Debug
+          derivedDataPath: ${{ env.BUILD_DIR }}/DerivedData
+
+  # ----- tests -----
+  - id: unit-test
+    name: Unit tests
+    needs: [build]
+    steps:
+      - uses: xcode-test
+        with:
+          workspace: ${{ env.XCODE_WORKSPACE }}
+          scheme: ${{ env.XCODE_SCHEME }}
+          destination: ${{ env.XCODE_SIMULATOR }}
+          onlyTesting: [${{ env.XCODE_SCHEME }}Tests]
+          enableCodeCoverage: true
+          xcresultPath: ${{ env.BUILD_DIR }}/unit.xcresult
+
+  - id: ui-test
+    name: UI tests
+    needs: [build]
+    when: ${{ env.RUN_UI_TESTS != 'false' }}
+    steps:
+      - uses: xcode-test
+        with:
+          workspace: ${{ env.XCODE_WORKSPACE }}
+          scheme: ${{ env.XCODE_SCHEME }}
+          destination: ${{ env.XCODE_SIMULATOR }}
+          onlyTesting: [${{ env.XCODE_SCHEME }}UITests]
+          parallelTesting: false
+          retryCount: 2
+          xcresultPath: ${{ env.BUILD_DIR }}/ui.xcresult
+
+  - id: integration-test
+    name: Integration tests
+    needs: [build]
+    when: ${{ env.RUN_INTEGRATION_TESTS != 'false' }}
+    steps:
+      - uses: xcode-test
+        with:
+          workspace: ${{ env.XCODE_WORKSPACE }}
+          scheme: ${{ env.XCODE_SCHEME }}
+          destination: ${{ env.XCODE_SIMULATOR }}
+          onlyTesting: [${{ env.XCODE_SCHEME }}IntegrationTests]
+          testPlan: Integration
+          xcresultPath: ${{ env.BUILD_DIR }}/integration.xcresult
+
+  # ----- coverage extraction -----
+  - id: coverage
+    name: Coverage report
+    needs: [unit-test]
+    steps:
+      - uses: xccov
+        with:
+          xcresultPath: ${{ env.BUILD_DIR }}/unit.xcresult
+          outputPath: ${{ env.BUILD_DIR }}/coverage.json
+
+  # ----- sonar scan (the moment of truth) -----
+  - id: sonar-scan
+    name: SonarQube scan
+    needs: [coverage, lint, secret-scan, security-static]
+    steps:
+      - uses: sonar-scanner
+        with:
+          hostUrl: ${{ env.SONAR_HOST_URL }}
+          token: ${{ env.SONAR_TOKEN }}
+          projectKey: ${{ env.XCODE_SCHEME }}
+          xccovReportPaths: [${{ env.BUILD_DIR }}/coverage.json]
+          xcresultPaths: [${{ env.BUILD_DIR }}/unit.xcresult]
+          exportSarifPath: ${{ env.BUILD_DIR }}/sonar-swift.sarif
+          extra:
+            - sonar.sources=Sources
+            - sonar.tests=Tests
+            - sonar.swift.leak.enabled=true

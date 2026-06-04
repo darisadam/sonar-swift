@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sonar-swift · pre-commit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<nav class="topbar">
+    <div class="brand">sonar-swift <span class="muted">/ pre-commit</span></div>
+    <div class="links">
+        <a href="/">Overview</a>
+        <a href="/scans">Scans</a>
+        <a href="/leaks">Leak reports</a>
+        <a href="/precommit" class="active">Pre-commit</a>
+        <a href="/pipeline">Pipeline</a>
+        <a href="/settings">Settings</a>
+        <a href="{{sonarUrl}}" target="_blank" rel="noopener">SonarQube ↗</a>
+    </div>
+</nav>
+
+<main>
+    <section class="hero">
+        <h1>Pre-commit runs</h1>
+        <p>Local hook execution history. Each entry is one run recorded by
+           <code>scripts/hooks/sonar-swift-precommit.sh</code>.</p>
+    </section>
+
+    <section>
+        <table id="precommit-table">
+            <thead><tr><th>Run</th><th>Captured</th><th>Size</th></tr></thead>
+            <tbody><tr><td colspan="3" class="muted">loading…</td></tr></tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h3>Setup</h3>
+        <pre class="block">pip install pre-commit
+pre-commit install
+pre-commit run --all-files</pre>
+        <p>The hook calls SwiftLint, swift-format, and sonar-swift's quick-scan mode against
+           changed files. See <code>.pre-commit-config.yaml</code> at the repo root.</p>
+    </section>
+</main>
+
+<script src="/assets/app.js"></script>
+<script>SonarSwift.refreshPrecommit();</script>
+</body>
+</html>

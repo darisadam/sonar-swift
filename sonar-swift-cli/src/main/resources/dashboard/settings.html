@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sonar-swift · settings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<nav class="topbar">
+    <div class="brand">sonar-swift <span class="muted">/ settings</span></div>
+    <div class="links">
+        <a href="/">Overview</a>
+        <a href="/scans">Scans</a>
+        <a href="/leaks">Leak reports</a>
+        <a href="/precommit">Pre-commit</a>
+        <a href="/settings" class="active">Settings</a>
+        <a href="{{sonarUrl}}" target="_blank" rel="noopener">SonarQube ↗</a>
+    </div>
+</nav>
+
+<main>
+    <section class="hero">
+        <h1>Settings</h1>
+        <p>Resolved dashboard + scanner configuration. Edit these via environment variables or
+           CLI flags &mdash; the dashboard itself is read-only.</p>
+    </section>
+
+    <section class="card">
+        <h3>Effective config</h3>
+        <pre class="block" id="config-json">loading…</pre>
+    </section>
+
+    <section class="card">
+        <h3>Override via CLI</h3>
+        <pre class="block">sonar-swift dashboard \
+    --port 8080 \
+    --bind 127.0.0.1 \
+    --sonar-url http://localhost:9000 \
+    --workspace .</pre>
+    </section>
+
+    <section class="card">
+        <h3>Override via env</h3>
+        <pre class="block">SONAR_HOST_URL    SonarQube base URL
+SONAR_SWIFT_BIND  Dashboard bind host (default 127.0.0.1)
+SONAR_SWIFT_PORT  Dashboard port (default 8080)
+SONAR_TOKEN       SonarQube auth token</pre>
+    </section>
+</main>
+
+<script src="/assets/app.js"></script>
+<script>SonarSwift.refreshSettings();</script>
+</body>
+</html>

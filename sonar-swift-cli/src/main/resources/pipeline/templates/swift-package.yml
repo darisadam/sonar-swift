@@ -1,0 +1,78 @@
+# sonar-swift pipeline — Swift Package
+#
+# For a SwiftPM library/executable. No Xcode workspace involved.
+
+name: swift-package
+description: Swift Package pipeline (lint → build+test → secrets → sonar)
+
+env:
+  PKG_DIR: .
+  SONAR_HOST_URL: http://localhost:9000
+  BUILD_DIR: build
+
+stages:
+
+  - id: lint
+    name: Lint
+    parallel: true
+    steps:
+      - uses: swiftlint
+        with: { strict: true }
+      - uses: swift-format
+        with: { mode: lint, strict: true, paths: [Sources] }
+      - uses: sonar-swift-quick
+        with: { paths: [Sources] }
+
+  - id: secret-scan
+    name: Secret scan
+    steps:
+      - uses: gitleaks
+        with: { redact: true, reportPath: ${{ env.BUILD_DIR }}/gitleaks.json }
+
+  - id: build-test
+    name: Build & test
+    needs: [lint]
+    steps:
+      - uses: command
+        name: swift build
+        with: { run: swift build -c debug --enable-code-coverage }
+      - uses: command
+        name: swift test
+        with: { run: swift test --enable-code-coverage --parallel }
+
+  - id: coverage
+    name: Coverage extraction
+    needs: [build-test]
+    steps:
+      - uses: command
+        name: llvm-cov export
+        with:
+          run: |
+            xcrun llvm-cov export \
+              -instr-profile=$(swift build --show-bin-path)/codecov/default.profdata \
+              $(swift build --show-bin-path)/*.xctest \
+              --format=lcov > ${{ env.BUILD_DIR }}/coverage.lcov
+
+  - id: vulnerability-scan
+    name: Vulnerability scan
+    needs: [lint]
+    parallel: true
+    steps:
+      - uses: trivy-fs
+        with: { severity: HIGH,CRITICAL }
+      - uses: dependency-check
+        name: dependency-check
+        with: { project: swift-package, scan: . }
+        continueOnError: true
+
+  - id: sonar-scan
+    name: SonarQube
+    needs: [coverage, secret-scan, vulnerability-scan]
+    steps:
+      - uses: sonar-scanner
+        with:
+          hostUrl: ${{ env.SONAR_HOST_URL }}
+          token: ${{ env.SONAR_TOKEN }}
+          extra:
+            - sonar.sources=Sources
+            - sonar.tests=Tests

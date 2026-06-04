@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sonar-swift · dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<nav class="topbar">
+    <div class="brand">sonar-swift <span class="muted">/ dashboard</span></div>
+    <div class="links">
+        <a href="/" class="active">Overview</a>
+        <a href="/scans">Scans</a>
+        <a href="/leaks">Leak reports</a>
+        <a href="/precommit">Pre-commit</a>
+        <a href="/pipeline">Pipeline</a>
+        <a href="/settings">Settings</a>
+        <a href="{{sonarUrl}}" target="_blank" rel="noopener">SonarQube ↗</a>
+    </div>
+</nav>
+
+<main>
+    <section class="hero">
+        <h1>Overview</h1>
+        <p>Local control panel for your sonar-swift scans. SonarQube remains the source of truth
+           for code analysis &mdash; this page is for tool-level controls.</p>
+    </section>
+
+    <section class="cards">
+        <article class="card" id="health-card">
+            <h3>System health</h3>
+            <ul class="kv" id="health-list">
+                <li>loading…</li>
+            </ul>
+        </article>
+
+        <article class="card">
+            <h3>Quick actions</h3>
+            <button class="primary" id="run-scan">Run full scan</button>
+            <button id="open-sonar" onclick="window.open('{{sonarUrl}}', '_blank')">Open SonarQube</button>
+            <p class="muted" id="run-scan-status"></p>
+        </article>
+
+        <article class="card">
+            <h3>Latest local CI run</h3>
+            <pre class="block" id="ci-summary">loading…</pre>
+        </article>
+
+        <article class="card">
+            <h3>Latest leak report</h3>
+            <pre class="block" id="leak-summary">loading…</pre>
+        </article>
+    </section>
+</main>
+
+<script src="/assets/app.js"></script>
+<script>
+    SonarSwift.refreshOverview();
+    document.getElementById('run-scan').addEventListener('click', SonarSwift.triggerScan);
+</script>
+</body>
+</html>
