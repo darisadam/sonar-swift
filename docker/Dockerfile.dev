@@ -1,0 +1,38 @@
+FROM eclipse-temurin:17-jdk
+# Dev container: Java + Maven + Swift (Linux toolchain) + sonar-scanner CLI.
+# Use this when you want a single env that can build the plugin AND scan a
+# Swift project, e.g. on a Linux CI runner without macOS.
+
+ARG MAVEN_VERSION=3.9.9
+ARG SCANNER_VERSION=6.2.1.4610
+ARG SWIFT_VERSION=6.0
+ARG SWIFT_BRANCH=swift-${SWIFT_VERSION}-release
+ARG SWIFT_TAG=swift-${SWIFT_VERSION}-RELEASE
+
+# Maven
+RUN curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
+    | tar -xz -C /opt && ln -s /opt/apache-maven-${MAVEN_VERSION} /opt/maven
+ENV PATH=/opt/maven/bin:$PATH
+
+# sonar-scanner
+RUN curl -fsSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}.zip \
+    -o /tmp/ss.zip && unzip /tmp/ss.zip -d /opt && rm /tmp/ss.zip \
+    && ln -s /opt/sonar-scanner-${SCANNER_VERSION} /opt/sonar-scanner
+ENV PATH=/opt/sonar-scanner/bin:$PATH
+
+# Swift (Linux). Optional — only needed if you're building the parser here.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        binutils git libc6-dev libcurl4 libedit2 libgcc-12-dev libpython3-dev \
+        libsqlite3-0 libstdc++-12-dev libxml2 libz3-dev pkg-config tzdata zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/swift
+RUN ARCH=$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/aarch64/') \
+    && curl -fsSL https://download.swift.org/${SWIFT_BRANCH}/ubuntu2204${ARCH/x86_64/}/${SWIFT_TAG}/${SWIFT_TAG}-ubuntu22.04${ARCH/x86_64/}.tar.gz \
+       | tar -xz --strip-components=1 || echo "Swift download failed — continuing (image still useful for plugin build)"
+ENV PATH=/opt/swift/usr/bin:$PATH
+
+# OCLint + Periphery + SwiftLint omitted from base image — pull them in your CI step
+# using brew on macOS or precompiled binaries on Linux.
+
+WORKDIR /workspace
